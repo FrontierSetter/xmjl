@@ -160,7 +160,7 @@
                     <div class="ui raised centered card"  style="height: 96%; width: 98%">
                         <div class="content" style="height: 100%; width: 100%;">
                             <!-- <p>上海交大-五菱E100电动汽车智能监控平台</p> -->
-                            <img width="100%" src="{{url_for('static', filename='img/title.png')}}" style="vertical-align: middle">
+                            <img height="100%" src="{{url_for('static', filename='img/title2.png')}}" style="margin:0 auto;">
                         </div>
                     </div>
                 </div>
@@ -170,7 +170,7 @@
                             <!-- 查询类型选择 -->
                             <select name="reques_type" class="ui compact dropdown" id="select">
                                 <optgroup label="车辆状态">
-                                    <option value="velocity" selected>速度</option>
+                                    <option value="speed" selected>速度</option>
                                     <option disabled="disabled" value="cumulative_mileage">总行驶里程</option>
                                     <option disabled="disabled" value="drive_motor_rpm">电机转速</option>
                                     <option disabled="disabled" value="drive_motor_temperature">电机温度</option>
@@ -198,7 +198,7 @@
 
                             <!-- 车牌号选择 -->
                             <select class="ui disabled compact search selection dropdown" id="search-select-license" onchange="licenseChange()"> 
-                                <option value="unknown">暂无拍照信息</option>
+                                <option value="unknown">暂无车牌信息</option>
                             </select>
 
 
@@ -608,6 +608,7 @@
 			text:'显示/隐藏纠偏后轨迹',
             callback:function(){
                 // console.log("纠偏")
+                // TODO:启发式调用鹰眼 2021年3月18日 23点36分
                 if(curLineNaive == true){
                     map.removeOverlay(polylineNaive);
                     map.addOverlay(polylineEagle);
@@ -618,7 +619,7 @@
                     curLineNaive = true
                 }
             },
-            mode:'single'
+            mode:'disabled'
 		},
         {
 			text:'播放轨迹动画',
@@ -636,7 +637,7 @@
                 trackAni.start();
                 
             },
-            mode:'single'
+            mode:'disabled'
 		},
         // {
 		// 	text:'暂停/继续轨迹动画',
@@ -675,7 +676,9 @@
     }
 
     for(var i = 0; i < txtMenuItem_all.length; ++i){
-        menu_all.getItem(i).enable();
+        if(txtMenuItem_all[i].mode != 'disabled'){
+            menu_all.getItem(i).enable();
+        }
     }
 
     function menuGlobal(){
@@ -690,10 +693,10 @@
 
     function menuSingle(){
         for(var i = 0; i < txtMenuItem_all.length; ++i){
-            if(txtMenuItem_all[i].mode == 'global'){
-                menu_all.getItem(i).disable();
-            }else{
+            if(txtMenuItem_all[i].mode == 'single'){
                 menu_all.getItem(i).enable();
+            }else{
+                menu_all.getItem(i).disable();
             }
         }
     }
@@ -1095,7 +1098,7 @@
             
             url: "http://202.120.60.31:3000/query/single/eagle/create",
             data: {
-                "ak": "kNUTUBAVwPw6ddlgoiCPcGGRNvGUVXLK",
+                "ak": "U4HQ9RgoGKsmYGzvGzQghas3mX8KYrik",
                 "service_id": 225809,
                 "entity_name": entityname
             },
@@ -1271,9 +1274,9 @@
     function requestSingleCarTrace(){
         singleCarTraceInitFinish = false;
         $.ajax({
-            url: 'http://202.120.60.31:3000/query/single/route', //请求的url
+            url: 'http://aps.xmjl.com:8101/query/single/route', //请求的url
             type: 'get', //请求的方式
-            data: 'car_VIN='+curCarVin+'&limit=1440',
+            data: 'car_VIN='+curCarVin+'&limit=10000',
             error: function (data) {
                 console.log('requestSingleCarTrace请求失败');
             },
@@ -1285,8 +1288,9 @@
                 singleCarFilteredPointsIdx = 0;
                 singleCarTranslatedPointsIdx = 0;
                 filterTrace(data);
-                constructEagleTrace(data,eagleEntity);
-                createEagleTrace(eagleEntity);
+                // TODO:鹰眼轨迹现在没有用 2021年3月18日 23点36分
+                // constructEagleTrace(data,eagleEntity);
+                // createEagleTrace(eagleEntity);
                 translateTrace();
             }
             
@@ -1307,9 +1311,9 @@
 
     function requestSingleCarHistory(){
         $.ajax({
-            url: 'http://202.120.60.31:3000/query/single/history', //请求的url
+            url: 'http://aps.xmjl.com:8101/query/single/history', //请求的url
             type: 'get', //请求的方式
-            data: 'car_VIN='+curCarVin+'&type='+curCarType+'&limit=1440',
+            data: 'car_VIN='+curCarVin+'&type='+curCarType+'&limit=10000',
             error: function (data) {
                 console.log('requestSingleCarHistory请求失败');
             },
@@ -1318,13 +1322,13 @@
                 dataLine = new Array();
 
                 var dataType = curCarType;
-                if(dataType == 'velocity'){
-                    dataType = 'speed';
-                }
+                // if(dataType == 'velocity'){
+                //     dataType = 'speed';
+                // }
 
                 for(var i = 0; i < data.length; ++i){
                     var d = new Date();
-                    d.setTime(Date.parse(data[i]['create_time']));
+                    d.setTime(Date.parse(data[i]['collectTime']));
                     dataLine.push({
                         name: d.toString(),
                         // [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('/')
@@ -1334,6 +1338,9 @@
                         ]
                     })
                 }
+
+                // console.log(data)
+                // console.log(dataLine)
                 // console.log('requestSingleCarHistory: '+dataLine.length+' '+data.length);
 
                 myChartLine.setOption({
@@ -1383,7 +1390,7 @@
         if(shouldRequestSingle == false) return;
         shouldRequestSingle = false;
         $.ajax({
-            url: 'http://202.120.60.31:3000/query/single/info_java', //请求的url
+            url: 'http://aps.xmjl.com:8101/query/single/info_java', //请求的url
             type: 'get', //请求的方式
             data: 'car_VIN='+curCarVin,
             error: function (data) {
@@ -1391,8 +1398,9 @@
             },
             success: function (data) {
                 console.log('requestSingleCar success');
-                // console.log(data);
-                data = JSON.parse(data);
+                console.log(data);
+                data = data[0];
+                // data = JSON.parse(data);
                 // console.log(data);
                 if(!curSingleMode) return;
 
@@ -1423,16 +1431,16 @@
                 }
 
                 var curOption = myChartGuage.getOption();
-                curOption.series[0].data[0].value = parseInt(data['speed'], 10);
-                curOption.series[1].data[0].value = parseInt(data['accPedalPos'], 10);
-                curOption.series[2].data[0].value = parseInt(data['batVoltage'], 10);
-                curOption.series[3].data[0].value = parseInt(data['batHighTemp'], 10);
+                curOption.series[0].data[0].value = data['speed'];
+                curOption.series[1].data[0].value = 0; //转速信息没有
+                curOption.series[2].data[0].value = parseInt(data['soc'].split('%')[0], 10);
+                curOption.series[3].data[0].value = data['temperature'] == null ? 0 : data['temperature'];
                 myChartGuage.setOption(curOption,true);
 
                 console.log('speed: '+data['speed']);
                 console.log('accPedalPos: '+data['accPedalPos']);
-                console.log('batVoltage: '+data['batVoltage']);
-                console.log('batHighTemp: '+data['batHighTemp']);
+                console.log('batVoltage: '+curOption.series[2].data[0].value);
+                console.log('batHighTemp: '+curOption.series[3].data[0].value);
 
                 var d = new Date();
                 d.setTime(Date.parse(data['collectTime']));
@@ -1445,7 +1453,7 @@
                     ]
                 })
 
-                console.log(dataLine)
+                // console.log(dataLine)
 
                 myChartLine.setOption({
                     series: [{
