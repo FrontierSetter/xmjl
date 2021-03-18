@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+	<style type="text/css">
+        div#allmap    {width: 80%;height: 97%; background: rgb(6, 211, 50); overflow: hidden;margin:0;font-family:"微软雅黑"; float: left;}
+        div#posDetail {width: 20%; height:35%; background: rgb(211, 21, 21);float: left;}
+        div#posNotice {width: 20%; height:65%; background: rgb(15, 12, 201);float: left;}
+	</style>
+	<script type="text/javascript" src="//api.map.baidu.com/api?v=3.0&ak=L2BqxrumWCQogRgq2SyQO3RUpEOk0ZgK"></script>
+    <script type="text/javascript" src="{{url_for('static', filename='polygon.js')}}"></script>
+    <title>地图展示</title>
+</head>
+<body style="height: 100%">
+	<div id="allmap"></div>
+	<div id="posDetail"></div>
+	<div id="posNotice"></div>
+</body>
+</html>
+
+<!-- 创建地图 -->
+<script type="text/javascript">
+	// 百度地图API功能
+	var map = new BMap.Map("allmap");    // 创建Map实例
+
+	//添加地图类型控件
+	map.addControl(new BMap.MapTypeControl({
+		mapTypes:[
+            BMAP_NORMAL_MAP,
+            BMAP_HYBRID_MAP
+        ]}));	  
+	map.setCurrentCity("上海");          // 设置地图显示的城市 此项是必须设置的
+	map.centerAndZoom(new BMap.Point(121.447176,31.033731),16);  // 初始化地图,设置中心点坐标和地图级别
+
+    map.setMapStyleV2({     
+        styleId: '9b66e10b0a8dfa4143dd8ef30ad2970a'
+    });
+
+
+    map.addControl(new BMap.NavigationControl());       // 平移缩放控件 左上方
+    map.addControl(new BMap.ScaleControl());            // 比例尺 左下方
+    map.addControl(new BMap.OverviewMapControl());      // 缩略地图 右下方
+    // map.addControl(new BMap.MapTypeControl());          // 地图类型 右上方
+
+    map.enableScrollWheelZoom(true);     //开启鼠标滚轮缩放
+    map.disableDoubleClickZoom();
+</script>
+
+<!-- 覆盖物通用工具 -->
+<script type="text/javascript">
+
+    function drawArea(areaName){
+        map.addOverlay(getPolygonByName(areaName));
+    }
+
+    function eraseArea(areaName){
+        map.removeOverlay(getPolygonByName(areaName));
+    }
+
+    function calculatePointsMean(pointsArr){
+        resultLng = 0.0;
+        resultLat = 0.0;
+        resultTot = pointsArr.length * 1.0;
+        for(var i = 0; i < pointsArr.length; ++i){
+            resultLng += pointsArr[i].lng;
+            resultLat += pointsArr[i].lat;
+        }
+
+        resultLng /= resultTot;
+        resultLat /= resultTot;
+
+        var resultPoint = new BMap.Point(resultLng, resultLat);
+        return resultPoint;
+    }
+
+    function drillDown(areaName){
+        subAreaArr = getSubAreaByName(areaName);
+        if(subAreaArr.length == 0){
+            return;
+        }
+        eraseArea(areaName)
+        for(var i = 0; i < subAreaArr.length; ++i){
+            drawArea(subAreaArr[i]);
+        }
+    }
+
+    function drillUp(areaName){
+        curParentArea = getParentAreaByName(areaName);
+        if(curParentArea == ""){
+            return;
+        }
+        brotherAreaArr = getSubAreaByName(curParentArea);
+
+        for(var i = 0; i < brotherAreaArr.length; ++i){
+            eraseArea(brotherAreaArr[i]);
+        }
+        drawArea(curParentArea);
+    }
+
+    var clickTimeId;
+
+    function onPolygonClick(areaName) {
+        // 取消上次延时未执行的方法
+        clearTimeout(clickTimeId);
+        //执行延时
+        clickTimeId = setTimeout(function() {
+            //此处为单击事件要执行的代码
+        //   console.log("鼠标单击");
+            drillDown(areaName)
+        }, 250);
+    }
+
+    function onPolygonDblClick(areaName) {
+        // 取消上次延时未执行的方法
+        clearTimeout(clickTimeId);
+        drillUp(areaName)
+        // console.log("鼠标双击");
+    }
+
+
+    
+
+    function addMouseHandler(content,marker){
+        // marker.addEventListener("mouseover",function(e){
+        //     openInfo(content, e);
+        // });
+        // marker.addEventListener("mouseout",function(e){
+        //     // map.closeInfoWindow();
+        // });
+        marker.addEventListener("click",function(){ //必须要在外面套一个匿名函数，不然会直接执行，不知道为什么
+            onPolygonClick(content)
+        });
+        marker.addEventListener("dblclick",function(){ //必须要在外面套一个匿名函数，不然会直接执行，不知道为什么
+            onPolygonDblClick(content)
+        });
+    }
+
+    function openInfo(content, e){
+        var p=e.target;
+        
+        var opts = {
+            // width : 50px,     // 信息窗口宽度
+            // height: '10%',     // 信息窗口高度
+            title : '区域信息'  // 信息窗口标题
+        }
+
+        var point=calculatePointsMean(p.getPath());
+        var infoWindow = new BMap.InfoWindow(content, opts);
+        map.openInfoWindow(infoWindow, point);
+    }
+
+
+
+</script>
+
+<!-- 覆盖物 -->
+<script type="text/javascript">
+
+    // map.addOverlay(polygon_1_1);    // 东上院
+    // map.addOverlay(polygon_1_2);    // 东中院
+    // map.addOverlay(polygon_1_3);    // 东下院
+
+    // drawArea('东上院')
+    // drawArea('东中院')
+    // drawArea('东下院')
+    drawArea('东区教学楼')
+    drawArea('东区生活区')
+
+
+    // eraseArea('东中院')
+
+    setPolygonColor('东上院', 'red');
+    
+    iteratePolygon(function(poly, area){
+        addMouseHandler(area, poly);
+    })
+
+</script>
